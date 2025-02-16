@@ -33,7 +33,7 @@ class TextTokenizer:
         text = self.preprocess_text(text)
         text = f"[{lang}]{text}"
         text = text.replace(" ", "[SPACE]")
-        return self.tokenizer.encode(text)
+        return self.tokenizer.encode('[START]' + text + '[STOP]')
 
     def check_input_length(self, text, lang):
         limit = self.CHAR_LIMITS.get(lang, 250)

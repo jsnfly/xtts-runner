@@ -1,3 +1,3 @@
 # Setup
 
-- Download the model: `git clone https://huggingface.co/coqui/XTTS-v2`
+- Download the model (git lfs needs to be installed): `git clone https://huggingface.co/coqui/XTTS-v2`
