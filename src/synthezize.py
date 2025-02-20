@@ -6,24 +6,20 @@ from torch.functional import F
 
 from gpt import XTTSGPT
 from tokenizer import TextTokenizer
-
-MODEL_DIR = Path(__file__).parent / "../XTTS-v2"
-SPEAKER = "Aaron Dreschner"
-LANG = "en"
-TEXT = "Hi! This is a test!"
+import argparse
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
-if __name__ == "__main__":
-    text_tokenizer = TextTokenizer(str(MODEL_DIR / "vocab.json"))
+def main(model_dir: str, text: str, lang: str, speaker: str, output_file: str):
+    text_tokenizer = TextTokenizer(str(Path(model_dir) / "vocab.json"))
 
-    gpt = XTTSGPT(MODEL_DIR / "config.json")
-    gpt.load(MODEL_DIR / "model.pth")
-    gpt.set_speaker_embeddings(MODEL_DIR / "speakers_xtts.pth", SPEAKER)
+    gpt = XTTSGPT(Path(model_dir) / "config.json")
+    gpt.load(Path(model_dir) / "model.pth")
+    gpt.set_speaker_embeddings(Path(model_dir) / "speakers_xtts.pth", speaker)
     logging.debug("Model weights loaded")
 
-    token_encoding = text_tokenizer.encode(TEXT, LANG)
+    token_encoding = text_tokenizer.encode(text, lang)
     logging.debug(f"Text tokens: {token_encoding.tokens}")
     input_ids = torch.tensor(token_encoding.ids + [gpt.config.gpt_start_audio_token], dtype=torch.int64).unsqueeze(0)
 
@@ -48,4 +44,15 @@ if __name__ == "__main__":
     logging.debug("Done generating")
     last_hidden_states = torch.cat([h[-1] for h in outputs.hidden_states], dim=1)[:, -outputs.sequences.shape[1]:]
     wav = gpt.decoder(last_hidden_states, g=gpt.speaker_emb).cpu().squeeze(0)
-    torchaudio.save("test.wav", wav.detach(), sample_rate=24_000, format="wav")
+    torchaudio.save(output_file, wav.detach(), sample_rate=24_000)
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Synthesize speech from text using XTTSGPT model.')
+    parser.add_argument('model_dir', type=str, help='Path to the directory containing the model files.')
+    parser.add_argument('--text', type=str, required=True, help='The text to synthesize speech from.')
+    parser.add_argument('--lang', type=str, default="en", help='The language of the input text. Default is "en".')
+    parser.add_argument('--speaker', type=str, default="Aaron Dreschner", help='Speaker voice.')
+    parser.add_argument('--output_file', type=str, help='The file to store the generated audio in.')
+
+    args = parser.parse_args()
+    main(args.model_dir, args.text, args.lang, args.speaker, args.output_file)
