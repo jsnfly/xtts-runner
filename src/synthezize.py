@@ -8,6 +8,8 @@ from gpt import XTTSGPT
 from tokenizer import TextTokenizer
 import argparse
 
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
+
 # Configure logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -16,6 +18,7 @@ def main(model_dir: str, text: str, lang: str, speaker: str, output_file: str):
 
     gpt = XTTSGPT(Path(model_dir) / "config.json")
     gpt.load(Path(model_dir) / "model.pth")
+    gpt.to(DEVICE)
     gpt.set_speaker_embeddings(Path(model_dir) / "speakers_xtts.pth", speaker)
     logging.debug("Model weights loaded")
 
@@ -25,7 +28,7 @@ def main(model_dir: str, text: str, lang: str, speaker: str, output_file: str):
 
     logging.debug(f"Input ids: {input_ids}")
     outputs = gpt.generate(
-        input_ids,
+        input_ids.to(DEVICE),
         bos_token_id=gpt.config.gpt_start_audio_token,
         pad_token_id=gpt.config.gpt_stop_audio_token,
         eos_token_id=gpt.config.gpt_stop_audio_token,

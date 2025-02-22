@@ -105,8 +105,8 @@ class XTTSGPT(GPT2Model, GenerationMixin):
 
     def set_speaker_embeddings(self, speakers_path, speaker):
         emb_dict = torch.load(speakers_path, weights_only=True)[speaker]
-        self.cond_latent = emb_dict["gpt_cond_latent"]
-        self.speaker_emb = emb_dict["speaker_embedding"]
+        self.cond_latent = emb_dict["gpt_cond_latent"].to(self.device)
+        self.speaker_emb = emb_dict["speaker_embedding"].to(self.device)
 
     def generate(self, input_ids, *args, **kwargs):
         if self.cond_latent is None:
