@@ -28,8 +28,8 @@ class XTTSStreamer(BaseStreamer):
         self.decoder = decoder
         self.speaker_embedding = speaker_embedding.to(decoder.device)
 
-        length_scale = 1.0 / speed
-        self.decoder.ar_mel_length_compression *= length_scale
+        self.length_scale = 1.0 / speed
+        self.decoder.ar_mel_length_compression *= self.length_scale
 
         self.generated_tokens = []
         self.generated_audio_bytes = b''
@@ -69,6 +69,9 @@ class XTTSStreamer(BaseStreamer):
         generated_latents = torch.cat(self.all_latents, dim=1)[:, -len(self.generated_tokens):]
         with torch.no_grad():
             generated_audio = self.decoder(generated_latents, g=self.speaker_embedding)
+
+            # # Alternative way to slow down audio playback.
+            # generated_audio = F.interpolate(generated_audio, scale_factor=self.length_scale)
 
         # TODO: handle chunks?
         # (https://github.com/coqui-ai/TTS/blob/dbf1a08a0d4e47fdad6172e433eeb34bc6b13b4e/TTS/tts/models/xtts.py#L688)
