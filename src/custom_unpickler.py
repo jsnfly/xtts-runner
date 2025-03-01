@@ -32,7 +32,7 @@ class TensorWrapper:
         data_slice = storage.data[offset:offset + total_elements]
 
         # Regular case with proper offset handling
-        return torch.from_numpy(data_slice).to(storage.dtype).view(size)
+        return torch.from_numpy(data_slice.copy()).to(storage.dtype).view(size)
 
 
 class CustomStorage:

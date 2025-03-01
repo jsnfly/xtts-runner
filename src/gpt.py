@@ -108,7 +108,8 @@ class XTTSGPT(GPT2Model, GenerationMixin):
         self.cond_latent = emb_dict["gpt_cond_latent"].to(self.device)
         self.speaker_emb = emb_dict["speaker_embedding"].to(self.device)
 
-    def generate(self, input_ids, *args, **kwargs):
+    @torch.no_grad()
+    def generate(self, input_ids, all_latents, *args, **kwargs):
         if self.cond_latent is None:
             raise ValueError("Latent conditionals are not set, please use `#set_speaker_embeddings` first.")
 
@@ -119,10 +120,10 @@ class XTTSGPT(GPT2Model, GenerationMixin):
         text_emb = self.text_emb(text_token_ids) + self.text_pos_emb(text_token_ids)
         self.prefix_emb = torch.cat([self.cond_latent, text_emb], dim=1)
 
-        return super().generate(input_ids[:, -1:], *args, **kwargs)
+        return super().generate(input_ids[:, -1:], all_latents=all_latents, *args, **kwargs)
 
 
-    def forward(self, input_ids, attention_mask, position_ids, past_key_values=None, *args, **kwargs):
+    def forward(self, input_ids, attention_mask, position_ids, all_latents, past_key_values=None, *args, **kwargs):
         emb = self.mel_emb(input_ids[:, -1]) + self.mel_pos_emb.get_fixed_embedding(position_ids[:, -1],
                                                                                     input_ids.device)
         if input_ids[0][-1] == self.config.gpt_start_audio_token:
@@ -131,7 +132,9 @@ class XTTSGPT(GPT2Model, GenerationMixin):
 
         outputs = super().forward(inputs_embeds=emb, attention_mask=attention_mask, position_ids=position_ids,
                                   past_key_values=past_key_values, use_cache=True, output_hidden_states=True)
-        outputs.hidden_states = list(outputs.hidden_states)
-        outputs.hidden_states[-1] = self.final_norm(outputs.hidden_states[-1])
-        outputs.logits = self.mel_head(outputs.hidden_states[-1])
+
+        latents = self.final_norm(outputs.hidden_states[-1])
+        all_latents.append(latents)
+        outputs.hidden_states = tuple()  # Not required as the last hidden state was already stored in `all_latents`.
+        outputs.logits = self.mel_head(latents)
         return outputs

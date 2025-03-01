@@ -82,11 +82,13 @@ class HifiDecoder(torch.nn.Module):
             Tensor: [B, 1, T]
         """
 
+        # upsample to expected length
         z = torch.nn.functional.interpolate(
             latents.transpose(1, 2),
             scale_factor=[self.ar_mel_length_compression / self.output_hop_length],
             mode="linear",
         ).squeeze(1)
+
         # upsample to the right sr
         if self.output_sample_rate != self.input_sample_rate:
             z = torch.nn.functional.interpolate(
@@ -96,22 +98,6 @@ class HifiDecoder(torch.nn.Module):
             ).squeeze(0)
         o = self.waveform_decoder(z, g=g)
         return o
-
-    @torch.no_grad()
-    def inference(self, c, g):
-        """
-        Args:
-            x (Tensor): feature input tensor (GPT latent).
-            g (Tensor): global conditioning input tensor.
-
-        Returns:
-            Tensor: output waveform.
-
-        Shapes:
-            x: [B, C, T]
-            Tensor: [B, 1, T]
-        """
-        return self.forward(c, g=g)
 
 
 class HifiganGenerator(torch.nn.Module):

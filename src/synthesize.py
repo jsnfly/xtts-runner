@@ -27,12 +27,17 @@ def main(model_dir: str, text: str, lang: str, speaker: str, output_file: str):
     input_ids = torch.tensor(token_encoding.ids + [gpt.config.gpt_start_audio_token], dtype=torch.int64).unsqueeze(0)
 
     logging.debug(f"Input ids: {input_ids}")
+
+    # List to store the last hidden states during generation. Could also be returned as part of the result, but this is
+    # more flexible, esp. for audio streaming.
+    all_latents = []
+
     outputs = gpt.generate(
         input_ids.to(DEVICE),
         bos_token_id=gpt.config.gpt_start_audio_token,
         pad_token_id=gpt.config.gpt_stop_audio_token,
         eos_token_id=gpt.config.gpt_stop_audio_token,
-        do_sample=False,
+        do_sample=True,
         top_p=0.85,
         top_k=50,
         temperature=0.75,
@@ -42,10 +47,11 @@ def main(model_dir: str, text: str, lang: str, speaker: str, output_file: str):
         repetition_penalty=5.0,
         max_new_tokens=gpt.config.gpt_max_audio_tokens,
         return_dict_in_generate=True,
-        output_hidden_states=True
+        output_hidden_states=True,
+        all_latents=all_latents
     )
     logging.debug("Done generating")
-    last_hidden_states = torch.cat([h[-1] for h in outputs.hidden_states], dim=1)[:, -outputs.sequences.shape[1]:]
+    last_hidden_states = torch.cat(all_latents, dim=1)[:, -outputs.sequences.shape[1]:]
     wav = gpt.decoder(last_hidden_states, g=gpt.speaker_emb).cpu().squeeze(0)
     torchaudio.save(output_file, wav.detach(), sample_rate=24_000)
 
